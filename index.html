@@ -39,7 +39,7 @@
 <div id="container"></div>
 <div id="ui">
   <h1>3D Grundriss – Wohngebäude</h1>
-  <p>Spiegelsymmetrisches Doppelhaus (2 Wohnungen) mit zentralem Treppenhaus, nach der Vorlage nachgebaut.</p>
+  <p>Originalgetreu nach der Vorlage: gestuftes Gebäude mit vorspringendem Mittelteil, 2 unterschiedlich geschnittenen Wohnungen, Treppenhaus und Aufzug.</p>
   <div class="row">
     <button id="btnRoof">Dach ein/aus</button>
     <button id="btnCeil">Wände transparent</button>
@@ -501,13 +501,45 @@ function addSinkFixture(x,z,rotY,small){
   mirror.position.set(0,1.5,-0.19); g.add(mirror);
   return g;
 }
-function addBathtub(x,z,rotY,w,d){
-  w=w||1.7; d=d||0.75;
+function addDesk(x,z,rotY,w){
+  w = w||1.1;
   var g = group(x,z,rotY);
-  var outer = box(w,0.55,d, new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.3}));
-  outer.position.y=0.275; g.add(outer);
-  var inner = box(w-0.14,0.35,d-0.14, new THREE.MeshStandardMaterial({color:0xdfeef2}));
-  inner.position.y=0.42; g.add(inner);
+  var top = box(w,0.04,0.55, new THREE.MeshStandardMaterial({color:0x8a6642}));
+  top.position.y=0.72; g.add(top);
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(p){
+    var leg = box(0.04,0.7,0.04, new THREE.MeshStandardMaterial({color:0x2c2c2c}));
+    leg.position.set(p[0]*(w/2-0.05),0.35,p[1]*0.22); g.add(leg);
+  });
+  var chair = new THREE.Group(); chair.position.set(0,0,0.55); g.add(chair);
+  var seat = box(0.4,0.05,0.4, new THREE.MeshStandardMaterial({color:0x6b4a30}));
+  seat.position.y=0.45; chair.add(seat);
+  var back = box(0.4,0.4,0.05, new THREE.MeshStandardMaterial({color:0x6b4a30}));
+  back.position.set(0,0.65,0.2); chair.add(back);
+  [[-0.16,-0.16],[0.16,-0.16],[-0.16,0.16],[0.16,0.16]].forEach(function(p){
+    var leg2 = box(0.035,0.45,0.035, new THREE.MeshStandardMaterial({color:0x2c2c2c}));
+    leg2.position.set(p[0],0.225,p[1]); chair.add(leg2);
+  });
+  return g;
+}
+function addElevator(cx, cz, size){
+  size = size||2.2;
+  var g = new THREE.Group();
+  g.position.set(cx,0,cz);
+  furnGroup.add(g);
+  var shaftMat = new THREE.MeshStandardMaterial({color:0xb7b2a6, roughness:0.8});
+  var doorMat2 = new THREE.MeshStandardMaterial({color:0x8f97a0, metalness:0.6, roughness:0.3});
+  var wallT = 0.12;
+  [[-1,0],[1,0],[0,-1]].forEach(function(p){
+    var w2 = p[0]!==0 ? box(wallT, WALL_H, size, shaftMat) : box(size, WALL_H, wallT, shaftMat);
+    w2.position.set(p[0]*(size/2), WALL_H/2, p[1]*(size/2));
+    g.add(w2);
+  });
+  var doorL = box(size*0.42, 2.1, 0.06, doorMat2);
+  doorL.position.set(-size*0.23, 1.05, size/2-0.03); g.add(doorL);
+  var doorR = box(size*0.42, 2.1, 0.06, doorMat2);
+  doorR.position.set(size*0.23, 1.05, size/2-0.03); g.add(doorR);
+  var panel = box(0.14,0.2,0.03, new THREE.MeshStandardMaterial({color:0x333333}));
+  panel.position.set(size/2+0.08, 1.3, size/2-0.1); g.add(panel);
   return g;
 }
 function addShowerStall(x,z,rotY,size){
@@ -535,265 +567,244 @@ function addStorageShelf(x,z,rotY,w){
   return g;
 }
 
-function addStaircase(cx, cz){
+/**
+ * Einläufige, gerade Treppe (wie in der Vorlage: ein Lauf über die
+ * gesamte Geschosshöhe, Punkt=unten, Pfeil=Aufstiegsrichtung nach oben).
+ * Laeuft entlang X von x0(unten) nach x1(oben), Breite entlang Z.
+ */
+function addStaircase(x0, x1, z0, z1){
   var g = new THREE.Group();
-  g.position.set(cx,0,cz);
   furnGroup.add(g);
   var stepMat = new THREE.MeshStandardMaterial({color:0xcfc6b3, roughness:0.8});
   var railMat = new THREE.MeshStandardMaterial({color:0x555555, metalness:0.5, roughness:0.4});
-  var steps = 11, riser = WALL_H/2/steps, tread = 0.27, width=1.15;
-  // erster Lauf: nach +Z aufsteigend
+  var width = z1-z0, run = x1-x0;
+  var steps = 16, tread = run/steps, riser = WALL_H/steps;
   for(var i=0;i<steps;i++){
-    var s = box(width, riser, tread, stepMat);
-    s.position.set(-0.85, riser/2 + i*riser, -1.6 + i*tread);
+    var s = box(tread+0.01, riser*(i+1), width, stepMat);
+    s.position.set(x0 + tread/2 + i*tread, riser*(i+1)/2, (z0+z1)/2);
     g.add(s);
   }
-  // Podest
-  var landing = box(width, 0.05, 1.3, stepMat);
-  landing.position.set(-0.85, steps*riser, -1.6+steps*tread+1.3/2-tread/2);
-  g.add(landing);
-  // zweiter Lauf: zurück nach -Z, hoeher
-  for(var j=0;j<steps;j++){
-    var s2 = box(width, riser, tread, stepMat);
-    s2.position.set(0.85, steps*riser + riser/2 + j*riser, -1.6 + (steps-1-j)*tread);
-    g.add(s2);
-  }
-  // Gelaender (vereinfachte Pfosten + Handlauf)
-  [-0.85,0.85].forEach(function(sx,idx){
+  [z0+0.05, z1-0.05].forEach(function(rz){
     for(var k=0;k<=steps;k++){
-      var py = (idx===0? k*riser : steps*riser+k*riser) + 0.5;
-      var pz = idx===0 ? -1.6+k*tread : -1.6+(steps-k)*tread;
-      var post = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,1.0,6), railMat);
-      post.position.set(sx + (sx<0?width/2-0.05:-(width/2-0.05)), py, pz);
+      var post = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.9,6), railMat);
+      post.position.set(x0+k*tread, k*riser+0.45, rz);
       g.add(post);
     }
+    var rail = box(run+0.1, 0.05, 0.05, railMat);
+    rail.position.set((x0+x1)/2, WALL_H/2+0.45, rz);
+    rail.rotation.z = Math.atan2(WALL_H, run);
+    g.add(rail);
   });
   return g;
 }
 
 /* ===========================================================
-   RAUMDEFINITIONEN – WOHNUNG 1 (linke/obere Haelfte)
-   Wird per Punktspiegelung (180 Grad) zu Wohnung 2 gespiegelt,
-   analog zur Vorlage (zwei identische, gegenläufige Wohnungen).
+   RAUMDEFINITIONEN – nach der Vorlage nachgezeichnet.
+   Das Gebäude ist NICHT rechteckig: der Mittelteil (13,88 m)
+   springt oben um 4,10 m weiter vor als die beiden Seitenflügel
+   (6,95 m). Die beiden Wohnungen sind spiegelbildlich in der
+   Wandgeometrie, aber unterschiedlich geschnitten (Küche links
+   im EG-Rundgang vorne, rechts hinten neben dem Eck-Schlafzimmer).
    =========================================================== */
-var rooms1 = [
-  {name:'Wohnzimmer', x0:0.0, x1:6.0,  z0:0.0,  z1:7.6,  type:'living'},
-  {name:'Schlafzimmer 1', x0:6.0, x1:12.0, z0:0.0, z1:4.0, type:'bedroom'},
-  {name:'Gäste-WC', x0:6.0, x1:9.0, z0:4.0, z1:7.6, type:'bath'},
-  {name:'Bad', x0:9.0, x1:12.0, z0:4.0, z1:7.6, type:'bath'},
-  {name:'Schlafzimmer 2', x0:6.0, x1:12.0, z0:7.6, z1:13.0, type:'bedroom'},
-  {name:'Küche', x0:0.0, x1:6.0, z0:7.6, z1:13.0, type:'kitchen'},
-  {name:'Schlafzimmer 3', x0:0.0, x1:6.0, z0:13.0, z1:18.32, type:'bedroom'},
-  {name:'Flur', x0:6.0, x1:12.0, z0:13.0, z1:15.5, type:'hall'},
-  {name:'Arbeitszimmer', x0:6.0, x1:12.0, z0:15.5, z1:18.32, type:'study'}
-];
+var BUMP_X0 = 6.95, BUMP_X1 = 20.83, BUMP_Z1 = 4.10;
+var NOOK_X0 = 12.9, NOOK_X1 = 14.9;
 
-function mirrorRect(r){
-  var nx0 = BW-r.x1, nx1 = BW-r.x0;
-  var nz0 = BD-r.z1, nz1 = BD-r.z0;
-  return {name:r.name, x0:nx0, x1:nx1, z0:nz0, z1:nz1, type:r.type};
-}
-var rooms2 = rooms1.map(mirrorRect);
-var allRooms = rooms1.concat(rooms2).concat([
-  {name:'Treppenhaus / Eingang', x0:CORE_X0, x1:CORE_X1, z0:0, z1:BD, type:'core'}
-]);
+var allRooms = [
+  {name:'Schlafzimmer', x0:6.95, x1:12.9, z0:0, z1:4.10, type:'bedroom'},
+  {name:'Flur (Fenster)', x0:12.9, x1:14.9, z0:0, z1:4.10, type:'hall'},
+  {name:'Schlafzimmer', x0:14.9, x1:20.83, z0:0, z1:4.10, type:'bedroom'},
+
+  {name:'Wohnzimmer', x0:0, x1:5.2, z0:4.10, z1:8.40, type:'living'},
+  {name:'Küche', x0:5.2, x1:9.70, z0:4.10, z1:8.40, type:'kitchen'},
+  {name:'Schlafzimmer', x0:0, x1:5.3, z0:8.40, z1:18.32, type:'bedroom'},
+  {name:'Flur', x0:5.3, x1:7.2, z0:8.40, z1:18.32, type:'hall'},
+  {name:'Gäste-WC', x0:7.2, x1:9.70, z0:8.40, z1:13.0, type:'bath'},
+  {name:'Bad', x0:7.2, x1:9.70, z0:13.0, z1:18.32, type:'bath'},
+
+  {name:'Zimmer / Arbeiten', x0:18.10, x1:22.6, z0:4.10, z1:8.40, type:'bedroom'},
+  {name:'Wohnzimmer', x0:22.6, x1:27.80, z0:4.10, z1:8.40, type:'living'},
+  {name:'Gäste-WC', x0:18.10, x1:20.6, z0:8.40, z1:13.0, type:'bath'},
+  {name:'Bad', x0:18.10, x1:20.6, z0:13.0, z1:18.32, type:'bath'},
+  {name:'Flur', x0:20.6, x1:22.5, z0:8.40, z1:18.32, type:'hall'},
+  {name:'Küche', x0:22.5, x1:27.80, z0:8.40, z1:13.0, type:'kitchen'},
+  {name:'Schlafzimmer', x0:22.5, x1:27.80, z0:13.0, z1:18.32, type:'bedroom'},
+
+  {name:'Treppenhaus / Aufzug', x0:9.70, x1:18.10, z0:4.10, z1:18.32, type:'core'}
+];
 
 allRooms.forEach(function(r){ addFloor(r,r.type); });
 
 /* ===========================================================
    WÄNDE BAUEN
    =========================================================== */
-// Aussenwaende
-buildWall('H', 0,    0, BW, EXT_T, WALL_H, [
-  {from:1.0, to:3.2, type:'window'},
-  {from:8.0, to:10.2, type:'window'},
-  {from:13.2, to:14.6, type:'window'},
-  {from:17.6, to:19.8, type:'window'},
-  {from:24.6, to:26.8, type:'window'}
-], wallMatEx); // Norden
-
-buildWall('H', BD,   0, BW, EXT_T, WALL_H, [
-  {from:1.0, to:3.2, type:'window'},
-  {from:8.0, to:10.2, type:'window'},
-  {from:13.2, to:14.6, type:'door', side:1},
-  {from:17.6, to:19.8, type:'window'},
-  {from:24.6, to:26.8, type:'window'}
-], wallMatEx); // Sueden (mit Hauseingang)
-
-buildWall('V', 0,    0, BD, EXT_T, WALL_H, [
-  {from:2.0, to:4.2, type:'window'},
-  {from:9.0, to:10.5, type:'window'},
-  {from:15.0, to:16.5, type:'window'}
+// --- Aussenwaende (mit dem gestuften Mittelteil) ---
+buildWall('V', 0, BUMP_Z1, BD, EXT_T, WALL_H, [
+  {from:5.5, to:7.3, type:'window'},
+  {from:10.5, to:12.3, type:'window'},
+  {from:15.0, to:16.8, type:'window'}
 ], wallMatEx); // Westen
 
-buildWall('V', BW,   0, BD, EXT_T, WALL_H, [
-  {from:1.82, to:3.32, type:'window'},
-  {from:7.82, to:9.32, type:'window'},
-  {from:14.12, to:16.32, type:'window'}
+buildWall('H', BUMP_Z1, 0, BUMP_X0, EXT_T, WALL_H, [
+  {from:1.8, to:3.6, type:'window'}
+], wallMatEx); // Rueckwaertiger Rueckspung links (Wohnzimmer)
+
+buildWall('V', BUMP_X0, 0, BUMP_Z1, EXT_T, WALL_H, []); // Giebel Mittelteil, links
+
+buildWall('H', 0, BUMP_X0, BUMP_X1, EXT_T, WALL_H, [
+  {from:8.3, to:10.3, type:'window'},
+  {from:13.2, to:14.6, type:'window'},
+  {from:17.5, to:19.5, type:'window'}
+], wallMatEx); // Nordgiebel des vorspringenden Mittelteils
+
+buildWall('V', BUMP_X1, 0, BUMP_Z1, EXT_T, WALL_H, []); // Giebel Mittelteil, rechts
+
+buildWall('H', BUMP_Z1, BUMP_X1, BW, EXT_T, WALL_H, [
+  {from:24.2, to:26.0, type:'window'}
+], wallMatEx); // Rueckspung rechts (Wohnzimmer)
+
+buildWall('V', BW, BUMP_Z1, BD, EXT_T, WALL_H, [
+  {from:5.5, to:7.3, type:'window'},
+  {from:15.0, to:16.8, type:'window'}
 ], wallMatEx); // Osten
 
-// Kernwaende (Treppenhaus)
-buildWall('V', CORE_X0, 0, BD, INT_T, WALL_H, [
-  {from:1.5, to:2.4, type:'door', side:-1},
-  {from:13.8, to:14.7, type:'door', side:-1}
+buildWall('H', BD, 0, BW, EXT_T, WALL_H, [
+  {from:2.0, to:3.8, type:'window'},
+  {from:8.0, to:9.2, type:'window'},
+  {from:13.0, to:14.6, type:'door', side:1},
+  {from:18.9, to:20.0, type:'window'},
+  {from:24.0, to:26.5, type:'window'}
+], wallMatEx); // Sueden mit Hauseingang
+
+// --- Trennwand Giebelgeschoss (Schlafzimmer) / Hauptgeschoss ---
+buildWall('H', BUMP_Z1, BUMP_X0, BUMP_X1, INT_T, WALL_H, [
+  {from:7.6, to:8.5, type:'door', side:1},
+  {from:NOOK_X0, to:NOOK_X1, type:'open'},
+  {from:19.3, to:20.2, type:'door', side:-1}
 ]);
-buildWall('V', CORE_X1, 0, BD, INT_T, WALL_H, [
-  {from:BD-2.4, to:BD-1.5, type:'door', side:1},
-  {from:BD-14.7, to:BD-13.8, type:'door', side:1}
+buildWall('V', NOOK_X0, 0, BUMP_Z1, INT_T, WALL_H, []);
+buildWall('V', NOOK_X1, 0, BUMP_Z1, INT_T, WALL_H, []);
+
+// --- Linke Wohnung ---
+buildWall('V', 5.2, BUMP_Z1, 8.40, INT_T, WALL_H, [
+  {from:5.6, to:6.5, type:'door', side:1}
+]);
+buildWall('H', 8.40, 0, 9.70, INT_T, WALL_H, [
+  {from:6.0, to:6.9, type:'door', side:-1}
+]);
+buildWall('V', 5.3, 8.40, BD, INT_T, WALL_H, [
+  {from:9.6, to:10.5, type:'door', side:1}
+]);
+buildWall('V', 7.2, 8.40, BD, INT_T, WALL_H, [
+  {from:9.8, to:10.7, type:'door', side:-1},
+  {from:14.6, to:15.5, type:'door', side:-1}
+]);
+buildWall('H', 13.0, 7.2, 9.70, INT_T, WALL_H, [
+  {from:8.0, to:8.7, type:'door', side:1}
+]);
+buildWall('V', 9.70, BUMP_Z1, BD, INT_T, WALL_H, [
+  {from:6.5, to:7.4, type:'door', side:1}
 ]);
 
-// Wohnung 1 – Innenwaende
-buildWall('V', 6.0, 0, BD, INT_T, WALL_H, [
-  {from:1.0, to:1.9, type:'door', side:1},
-  {from:5.0, to:5.9, type:'door', side:-1},
-  {from:13.8, to:14.7, type:'door', side:1}
+// --- Rechte Wohnung (Wandgeometrie gespiegelt, Nutzung unterschiedlich) ---
+buildWall('V', 22.6, BUMP_Z1, 8.40, INT_T, WALL_H, [
+  {from:5.6, to:6.5, type:'door', side:-1}
 ]);
-buildWall('V', 9.0, 4.0, 7.6, INT_T, WALL_H, []);
-buildWall('H', 7.6, 0, 12.0, INT_T, WALL_H, [
-  {from:2.0, to:2.9, type:'door', side:-1},
-  {from:10.0, to:10.9, type:'door', side:1}
+buildWall('H', 8.40, 18.10, 27.80, INT_T, WALL_H, [
+  {from:20.9, to:21.8, type:'door', side:1}
 ]);
-buildWall('H', 4.0, 6.0, 12.0, INT_T, WALL_H, [
-  {from:9.0, to:9.9, type:'door', side:-1}
+buildWall('V', 22.5, 8.40, BD, INT_T, WALL_H, [
+  {from:9.6, to:10.5, type:'door', side:-1},
+  {from:14.6, to:15.5, type:'door', side:-1}
 ]);
-buildWall('H', 13.0, 0, 12.0, INT_T, WALL_H, [
-  {from:2.0, to:2.9, type:'door', side:1},
-  {from:7.0, to:7.9, type:'door', side:1}
+buildWall('V', 20.6, 8.40, BD, INT_T, WALL_H, [
+  {from:9.8, to:10.7, type:'door', side:1},
+  {from:14.6, to:15.5, type:'door', side:1}
 ]);
-buildWall('H', 15.5, 6.0, 12.0, INT_T, WALL_H, [
-  {from:8.0, to:8.9, type:'door', side:1}
+buildWall('H', 13.0, 18.10, 20.6, INT_T, WALL_H, [
+  {from:19.1, to:19.8, type:'door', side:-1}
 ]);
-
-// Wohnung 2 – gespiegelte Innenwaende
-function mirrorWallH(z, x0, x1, openings){
-  var nz = BD-z;
-  var mo = openings.map(function(o){ return {from: (x0+x1)-o.to, to:(x0+x1)-o.from, type:o.type, side:-o.side}; });
-  buildWall('H', nz, BW-x1, BW-x0, INT_T, WALL_H, mo);
-}
-function mirrorWallV(x, z0, z1, openings){
-  var nx = BW-x;
-  var mo = openings.map(function(o){ return {from:(z0+z1)-o.to, to:(z0+z1)-o.from, type:o.type, side:-o.side}; });
-  buildWall('V', nx, BD-z1, BD-z0, INT_T, WALL_H, mo);
-}
-mirrorWallV(6.0, 0, BD, [
-  {from:1.0, to:1.9, type:'door', side:1},
-  {from:5.0, to:5.9, type:'door', side:-1},
-  {from:13.8, to:14.7, type:'door', side:1}
+buildWall('H', 13.0, 22.5, 27.80, INT_T, WALL_H, [
+  {from:24.5, to:25.4, type:'door', side:1}
 ]);
-mirrorWallV(9.0, 4.0, 7.6, []);
-mirrorWallH(7.6, 0, 12.0, [
-  {from:2.0, to:2.9, type:'door', side:-1},
-  {from:10.0, to:10.9, type:'door', side:1}
-]);
-mirrorWallH(4.0, 6.0, 12.0, [
-  {from:9.0, to:9.9, type:'door', side:-1}
-]);
-mirrorWallH(13.0, 0, 12.0, [
-  {from:2.0, to:2.9, type:'door', side:1},
-  {from:7.0, to:7.9, type:'door', side:1}
-]);
-mirrorWallH(15.5, 6.0, 12.0, [
-  {from:8.0, to:8.9, type:'door', side:1}
+buildWall('V', 18.10, BUMP_Z1, BD, INT_T, WALL_H, [
+  {from:6.5, to:7.4, type:'door', side:-1}
 ]);
 
 /* ===========================================================
-   MOEBLIERUNG WOHNUNG 1
+   MOEBLIERUNG – GIEBELGESCHOSS (Schlafzimmer im Vorsprung)
    =========================================================== */
-// Wohnzimmer (0,0)-(6,7.6)
-addSofa(1.6, 1.4, Math.PI, 2.3);
-addArmchair(4.6, 1.7, -Math.PI/2);
-addCoffeeTable(1.9, 2.5, 0);
-addTVUnit(0.35, 2.6, Math.PI/2, 1.3);
-addRug(2.0, 2.4, 0, 2.4, 1.8, 0xb9482f);
-addDiningTable(4.4, 5.6, 0, false, 6, 1.6);
-
-// Schlafzimmer 1 (6,0)-(12,4)
-addBed(9.9, 1.9, Math.PI/2, true);
-addNightstand(9.9, 0.5, 0);
-addWardrobe(11.3, 3.4, Math.PI/2, 1.4);
-
-// Gaeste WC (6,4)-(9,7.6)
-addToiletFixture(6.5, 6.9, Math.PI/2);
-addSinkFixture(8.6, 4.4, Math.PI, true);
-
-// Bad (9,4)-(12,7.6)
-addBathtub(11.55, 5.0, Math.PI/2, 1.7, 0.75);
-addSinkFixture(9.5, 7.15, 0);
-addToiletFixture(11.6, 7.1, 0);
-
-// Schlafzimmer 2 (6,7.6)-(12,13)
-addBed(7.5, 8.8, 0, true);
-addNightstand(6.4, 8.8, 0);
-addWardrobe(10.8, 12.4, 0, 1.6);
-
-// Kueche (0,7.6)-(6,13)
-addKitchen({x0:0.15,x1:5.85,z0:7.75,z1:12.85}, 'west');
-addDiningTable(3.6, 11.5, 0, true, 4, 1.1);
-
-// Schlafzimmer 3 (0,13)-(6,18.32)
-addBed(1.9, 14.4, Math.PI, true);
-addNightstand(0.5, 14.4, Math.PI);
-addWardrobe(4.7, 17.6, 0, 1.8);
-
-// Flur (6,13)-(12,15.5)
-addStorageShelf(6.4, 14.2, Math.PI/2, 1.6);
-
-// Arbeitszimmer (6,15.5)-(12,18.32)
-addBed(7.4, 17.2, 0, false);
-addWardrobe(10.9, 16.0, Math.PI/2, 1.4);
-
-// Treppenhaus
-addStaircase((CORE_X0+CORE_X1)/2, BD/2 + 1.6);
+addBed(9.6, 1.3, 0, false);
+addNightstand(7.6, 1.3, 0);
+addStorageShelf(13.9, 0.9, 0, 1.6);
+addBed(18.1, 1.3, 0, true);
+addNightstand(20.2, 1.3, 0);
 
 /* ===========================================================
-   MOEBLIERUNG WOHNUNG 2 (Punktspiegelung von Wohnung 1)
+   MOEBLIERUNG – LINKE WOHNUNG
    =========================================================== */
-function mirrorFurnGroup(fn){
-  var before = furnGroup.children.length;
-  fn();
-  var after = furnGroup.children.length;
-  for(var i=before;i<after;i++){
-    var obj = furnGroup.children[i];
-    obj.position.x = BW - obj.position.x;
-    obj.position.z = BD - obj.position.z;
-    obj.rotation.y = obj.rotation.y + Math.PI;
-  }
-}
+// Wohnzimmer
+addSofa(1.5, 6.9, Math.PI/2, 1.7);
+addCoffeeTable(2.8, 6.9, 0, 0.7, 0.6);
+addRug(2.3, 6.6, 0, 2.0, 1.6, 0xb9482f);
 
-mirrorFurnGroup(function(){
-  addSofa(1.6, 1.4, Math.PI, 2.3);
-  addArmchair(4.6, 1.7, -Math.PI/2);
-  addCoffeeTable(1.9, 2.5, 0);
-  addTVUnit(0.35, 2.6, Math.PI/2, 1.3);
-  addRug(2.0, 2.4, 0, 2.4, 1.8, 0x2f7a4a);
-  addDiningTable(4.4, 5.6, 0, false, 6, 1.6);
+// Kueche
+addDiningTable(6.6, 5.6, 0, false, 4, 1.3);
+addKitchen({x0:5.35,x1:9.55,z0:4.25,z1:8.25}, 'east');
 
-  addBed(9.9, 1.9, Math.PI/2, true);
-  addNightstand(9.9, 0.5, 0);
-  addWardrobe(11.3, 3.4, Math.PI/2, 1.4);
+// Schlafzimmer (gross, mit Fenster nach Westen)
+addBed(2.2, 10.6, Math.PI/2, true);
+addNightstand(0.6, 10.6, Math.PI/2);
+addWardrobe(4.4, 17.2, 0, 1.8);
 
-  addToiletFixture(6.5, 6.9, Math.PI/2);
-  addSinkFixture(8.6, 4.4, Math.PI, true);
+// Flur
+addStorageShelf(6.6, 9.1, Math.PI/2, 1.1);
 
-  addBathtub(11.55, 5.0, Math.PI/2, 1.7, 0.75);
-  addSinkFixture(9.5, 7.15, 0);
-  addToiletFixture(11.6, 7.1, 0);
+// Gaeste-WC
+addToiletFixture(9.3, 12.6, Math.PI);
+addSinkFixture(9.3, 8.7, Math.PI, true);
 
-  addBed(7.5, 8.8, 0, true);
-  addNightstand(6.4, 8.8, 0);
-  addWardrobe(10.8, 12.4, 0, 1.6);
-});
-addKitchen({x0:BW-5.85,x1:BW-0.15,z0:BD-12.85,z1:BD-7.75}, 'east');
-addDiningTable(BW-3.6, BD-11.5, Math.PI, true, 4, 1.1);
+// Bad (Dusche)
+addShowerStall(9.0, 17.8, 0, 0.9);
+addSinkFixture(7.8, 17.8, Math.PI/2, true);
 
-mirrorFurnGroup(function(){
-  addBed(1.9, 14.4, Math.PI, true);
-  addNightstand(0.5, 14.4, Math.PI);
-  addWardrobe(4.7, 17.6, 0, 1.8);
-  addStorageShelf(6.4, 14.2, Math.PI/2, 1.6);
-  addBed(7.4, 17.2, 0, false);
-  addWardrobe(10.9, 16.0, Math.PI/2, 1.4);
-});
+/* ===========================================================
+   MOEBLIERUNG – RECHTE WOHNUNG
+   =========================================================== */
+// Zimmer / Arbeiten
+addBed(19.5, 5.3, 0, false);
+addWardrobe(21.1, 4.6, 0, 1.4);
+addDesk(21.4, 7.5, Math.PI, 1.0);
+
+// Wohnzimmer
+addSofa(26.5, 6.9, -Math.PI/2, 1.7);
+addCoffeeTable(25.1, 6.9, 0, 0.7, 0.6);
+addRug(25.6, 6.6, 0, 2.0, 1.6, 0x2f7a4a);
+
+// Gaeste-WC
+addToiletFixture(18.5, 12.6, 0);
+addSinkFixture(18.5, 8.7, 0, true);
+
+// Bad (Dusche)
+addShowerStall(18.8, 17.8, 0, 0.9);
+addSinkFixture(20.0, 17.8, -Math.PI/2, true);
+
+// Flur
+addStorageShelf(21.2, 9.1, -Math.PI/2, 1.1);
+
+// Kueche
+addKitchen({x0:22.65,x1:27.65,z0:8.55,z1:12.85}, 'east');
+addDiningTable(24.0, 10.5, 0, true, 4, 1.1);
+
+// Schlafzimmer (Eckzimmer)
+addBed(25.7, 16.2, Math.PI, true);
+addNightstand(27.2, 16.2, Math.PI);
+addWardrobe(23.3, 14.1, Math.PI/2, 1.6);
+
+/* ===========================================================
+   TREPPENHAUS / AUFZUG
+   =========================================================== */
+addElevator(14.8, 10.1, 2.2);
+addStaircase(11.8, 16.0, 13.0, 14.5);
 
 /* ===========================================================
    RAUMBESCHRIFTUNG
@@ -803,14 +814,21 @@ allRooms.forEach(function(r){
 });
 
 /* ===========================================================
-   DACH
+   DACH (folgt dem gestuften Grundriss)
    =========================================================== */
-var roof = box(BW+0.6, 0.25, BD+0.6, roofMat);
-roof.position.set(centerX, WALL_H+0.15, centerZ);
-roofGroup.add(roof);
-var roofCap = box(BW+1.0, 0.08, BD+1.0, new THREE.MeshStandardMaterial({color:0x6b2e21}));
-roofCap.position.set(centerX, WALL_H+0.29, centerZ);
-roofGroup.add(roofCap);
+var roofMain = box(BW+0.6, 0.25, (BD-BUMP_Z1)+0.6, roofMat);
+roofMain.position.set(centerX, WALL_H+0.15, BUMP_Z1 + (BD-BUMP_Z1)/2);
+roofGroup.add(roofMain);
+var roofBump = box((BUMP_X1-BUMP_X0)+0.6, 0.25, BUMP_Z1+0.6, roofMat);
+roofBump.position.set((BUMP_X0+BUMP_X1)/2, WALL_H+0.15, BUMP_Z1/2);
+roofGroup.add(roofBump);
+var capMat = new THREE.MeshStandardMaterial({color:0x6b2e21});
+var roofCapMain = box(BW+1.0, 0.08, (BD-BUMP_Z1)+1.0, capMat);
+roofCapMain.position.copy(roofMain.position); roofCapMain.position.y = WALL_H+0.29;
+roofGroup.add(roofCapMain);
+var roofCapBump = box((BUMP_X1-BUMP_X0)+1.0, 0.08, BUMP_Z1+1.0, capMat);
+roofCapBump.position.copy(roofBump.position); roofCapBump.position.y = WALL_H+0.29;
+roofGroup.add(roofCapBump);
 roofGroup.visible = false;
 
 /* ===========================================================
